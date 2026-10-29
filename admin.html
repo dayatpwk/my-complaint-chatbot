@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Komplain Pekerjaan</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            max-height: 700px;
+        }
+        .chat-header {
+            background: #4f46e5;
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .avatar {
+            width: 45px; height: 45px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .header-info h2 { font-size: 16px; }
+        .header-info p { font-size: 12px; opacity: 0.8; }
+        .chat-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            animation: slideIn 0.3s ease;
+            word-wrap: break-word;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bot {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .user {
+            background: #4f46e5;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-footer {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+        .options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .option-btn {
+            padding: 8px 16px;
+            border: 2px solid #4f46e5;
+            background: white;
+            color: #4f46e5;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: 0.2s;
+        }
+        .option-btn:hover { background: #4f46e5; color: white; }
+        .input-row { display: flex; gap: 8px; }
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        input[type="text"]:focus, textarea:focus { border-color: #4f46e5; }
+        button.send-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            width: 45px; height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        button.send-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .hidden { display: none !important; }
+        .loading::after {
+            content: '...';
+            animation: dots 1s infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        .success-box {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="avatar">🤖</div>
+        <div class="header-info">
+            <h2>Chatbot Komplain</h2>
+            <p>🟢 Online • Balas dalam 1 menit</p>
+        </div>
+    </div>
+
+    <div class="chat-body" id="chatBody">
+        <div class="message bot">
+            👋 Halo! Saya chatbot untuk menerima komplain pekerjaan.<br><br>
+            Komplain Anda akan otomatis diteruskan ke tim terkait.<br><br>
+            Silakan pilih <b>kategori</b> komplain Anda:
+        </div>
+        <div class="options" id="categoryOptions">
+            <button class="option-btn" onclick="selectCategory('IT / Teknis')">🖥️ IT / Teknis</button>
+            <button class="option-btn" onclick="selectCategory('HR / SDM')">👥 HR / SDM</button>
+            <button class="option-btn" onclick="selectCategory('Fasilitas')">🏢 Fasilitas</button>
+            <button class="option-btn" onclick="selectCategory('Lainnya')">📌 Lainnya</button>
+        </div>
+    </div>
+
+    <div class="chat-footer">
+        <!-- Step 1: pilih kategori -->
+        <div id="stepCategory">
+            <p style="font-size:12px;color:#666;text-align:center;">Pilih kategori di atas 👆</p>
+        </div>
+
+        <!-- Step 2: isi deskripsi -->
+        <div id="stepDescription" class="hidden">
+            <div class="input-row">
+                <input type="text" id="descInput" placeholder="Tuliskan detail komplain..." onkeypress="handleEnter(event)">
+                <button class="send-btn" onclick="sendDescription()">➤</button>
+            </div>
+        </div>
+
+        <!-- Step 3: isi nama & email (untuk forward) -->
+        <div id="stepIdentity" class="hidden">
+            <div class="input-row" style="margin-bottom:8px;">
+                <input type="text" id="nameInput" placeholder="Nama Anda...">
+            </div>
+            <div class="input-row">
+                <input type="text" id="emailInput" placeholder="Email Anda...">
+                <button class="send-btn" onclick="submitComplaint()">✓</button>
+            </div>
+        </div>
+
+        <!-- Step 4: konfirmasi -->
+        <div id="stepConfirm" class="hidden">
+            <div style="display:flex;gap:8px;">
+                <button class="option-btn" style="flex:1;" onclick="confirmSend()">✅ Kirim</button>
+                <button class="option-btn" style="flex:1;border-color:#dc3545;color:#dc3545;" onclick="resetChat()">❌ Batal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ⚠️ GANTI dengan URL Google Apps Script Anda (lihat langkah deploy di bawah)
+const API_URL = 'https://script.google.com/macros/s/AKfycby8pfE7O3ExOO-6b3rneR2XSqEmLlsRNbTbAxDajxEz4GXKGdy5K-6kwUBnoDNll3Ii/exec
+
+AKfy';
+
+let state = {
+    category: null,
+    description: null,
+    name: null,
+    email: null
+};
+
+const chatBody = document.getElementById('chatBody');
+
+function addMessage(text, sender = 'bot') {
+    const div = document.createElement('div');
+    div.className = `message ${sender}`;
+    div.innerHTML = text;
+    chatBody.appendChild(div);
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function selectCategory(cat) {
+    state.category = cat;
+    document.getElementById('categoryOptions').classList.add('hidden');
+    addMessage(`Kategori dipilih: <b>${cat}</b>`, 'user');
+    addMessage(`Baik, kategori <b>${cat}</b>.<br><br>Sekarang tuliskan <b>detail komplain</b> Anda:`);
+    document.getElementById('stepCategory').classList.add('hidden');
+    document.getElementById('stepDescription').classList.remove('hidden');
+    document.getElementById('descInput').focus();
+}
+
+function sendDescription() {
+    const input = document.getElementById('descInput');
+    const val = input.value.trim();
+    if (!val) return;
+    state.description = val;
+    addMessage(val, 'user');
+    document.getElementById('stepDescription').classList.add('hidden');
+    document.getElementById('stepIdentity').classList.remove('hidden');
+    addMessage('Terima kasih. Boleh saya tahu <b>nama</b> dan <b>email</b> Anda untuk tindak lanjut?');
+    document.getElementById('nameInput').focus();
+}
+
+function submitComplaint() {
+    const name = document.getElementById('nameInput').value.trim();
+    const email = document.getElementById('emailInput').value.trim();
+
+    if (!name || !email) {
+        alert('Nama dan email wajib diisi!');
+        return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('Format email tidak valid!');
+        return;
+    }
+
+    state.name = name;
+    state.email = email;
+    addMessage(`${name} | ${email}`, 'user');
+    document.getElementById('stepIdentity').classList.add('hidden');
+    document.getElementById('stepConfirm').classList.remove('hidden');
+
+    addMessage(
+        `📋 <b>Ringkasan Komplain:</b><br>
+        Kategori: ${state.category}<br>
+        Deskripsi: ${state.description}<br>
+        Nama: ${state.name}<br>
+        Email: ${state.email}<br><br>
+        Kirim komplain ini?`
+    );
+}
+
+async function confirmSend() {
+    document.getElementById('stepConfirm').classList.add('hidden');
+    addMessage('⏳ Mengirim komplain Anda...', 'bot');
+
+    try {
+        // Kirim ke Google Apps Script
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',  // GAS butuh no-cors
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(state)
+        });
+
+        // Karena no-cors, anggap sukses
+        addMessage(
+            `✅ <b>Komplain berhasil dikirim!</b><br><br>
+            Tim terkait sudah menerima komplain Anda via email & Telegram.<br>
+            Kami akan menghubungi Anda melalui email <b>${state.email}</b>.<br><br>
+            Terima kasih! 🙏`
+        );
+        document.getElementById('stepCategory').classList.remove('hidden');
+        document.getElementById('stepCategory').innerHTML =
+            '<p style="font-size:12px;color:#666;text-align:center;">Terima kasih! Refresh halaman untuk komplain baru.</p>';
+
+        // Reset state
+        state = { category: null, description: null, name: null, email: null };
+    } catch (err) {
+        addMessage('❌ Gagal mengirim. Periksa koneksi internet Anda.');
+        console.error(err);
+    }
+}
+
+function resetChat() {
+    state = { category: null, description: null, name: null, email: null };
+    location.reload();
+}
+
+function handleEnter(e) {
+    if (e.key === 'Enter') sendDescription();
+}
+</script>
+
+</body>
+</html>
